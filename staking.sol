@@ -134,7 +134,7 @@ contract Matata_Staking is Owned {
         uint remainder = (now.sub(lastClock[msg.sender])).mod(86400);
         lastClock[msg.sender] = now.sub(remainder);
         stakes[msg.sender] = (stakes[msg.sender]).add(afterTax);
-        IERC20(proofToken).transfer(msg.sender, totalStaked);
+        IERC20(proofToken).transfer(msg.sender, afterTax);
         emit OnStake(msg.sender, afterTax, stakingTax);
     }
     
