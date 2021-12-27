@@ -3,7 +3,7 @@ pragma solidity 0.8.2;
 contract Token {
     string public name = "MATATA STAKE PROOF";
     string public symbol = "MSP";
-    uint8 public decimals = 18;
+    uint8 public decimals = 6;
     uint256 public totalSupply = 0;
 
     address public owner;
