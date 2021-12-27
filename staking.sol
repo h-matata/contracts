@@ -77,13 +77,15 @@ contract Matata_Staking is Owned {
     uint public unstakingTaxRate;                   //10 = 1%
     uint public minimumStakeValue;
     bool public active = true;
+    bool public registered = true;
+
     
     mapping(address => uint) public stakes;
     mapping(address => uint) public referralRewards;
     mapping(address => uint) public referralCount;
     mapping(address => uint) public stakeRewards;
     mapping(address => uint) private lastClock;
-    mapping(address => bool) public registered;
+  //  mapping(address => bool) public registered; 
     
     event OnWithdrawal(address sender, uint amount);
     event OnStake(address sender, uint amount, uint tax);
@@ -108,47 +110,20 @@ contract Matata_Staking is Owned {
         minimumStakeValue = _minimumStakeValue;
     }
     
-    modifier onlyRegistered() {
-        require(registered[msg.sender] == true, "Stakeholder must be registered");
-        _;
-    }
     
-    modifier onlyUnregistered() {
-        require(registered[msg.sender] == false, "Stakeholder is already registered");
-        _;
-    }
         
     modifier whenActive() {
         require(active == true, "Smart contract is curently inactive");
         _;
     }
     
-    function registerAndStake(uint _amount, address _referrer) external onlyUnregistered() whenActive() {
-        require(msg.sender != _referrer, "Cannot refer self");
-        require(registered[_referrer] || address(0x0) == _referrer, "Referrer must be registered");
-        require(IERC20(token).balanceOf(msg.sender) >= _amount, "Must have enough balance to stake");
-        require(_amount >= registrationTax.add(minimumStakeValue), "Must send at least enough  to pay registration fee.");
-        require(IERC20(token).transferFrom(msg.sender, address(this), _amount), "Stake failed due to failed amount transfer.");
-        uint finalAmount = _amount.sub(registrationTax);
-        uint stakingTax = (stakingTaxRate.mul(finalAmount)).div(1000);
-        if(_referrer != address(0x0)) {
-            referralCount[_referrer]++;
-            referralRewards[_referrer] = (referralRewards[_referrer]).add(stakingTax);
-        } 
-        registered[msg.sender] = true;
-        lastClock[msg.sender] = now;
-        totalStaked = totalStaked.add(finalAmount).sub(stakingTax);
-        stakes[msg.sender] = (stakes[msg.sender]).add(finalAmount).sub(stakingTax);
-        IERC20(proofToken).transfer(msg.sender, _amount);
-        emit OnRegisterAndStake(msg.sender, _amount, registrationTax.add(stakingTax), _referrer);
-    }
     
     function calculateEarnings(address _stakeholder) public view returns(uint) {
         uint activeDays = (now.sub(lastClock[_stakeholder])).div(86400);
         return ((stakes[_stakeholder]).mul(dailyROI).mul(activeDays)).div(10000);
     }
     
-    function stake(uint _amount) external onlyRegistered() whenActive() {
+    function stake(uint _amount) external whenActive() {
         require(_amount >= minimumStakeValue, "Amount is below minimum stake value.");
         require(IERC20(token).balanceOf(msg.sender) >= _amount, "Must have enough balance to stake");
         require(IERC20(token).transferFrom(msg.sender, address(this), _amount), "Stake failed due to failed amount transfer.");
@@ -164,7 +139,7 @@ contract Matata_Staking is Owned {
     }
     
     
-    function unstake(uint _amount) external onlyRegistered() {
+    function unstake(uint _amount) external {
         require(_amount <= stakes[msg.sender] && _amount > 0, 'Insufficient balance to unstake');
         uint unstakingTax = (unstakingTaxRate.mul(_amount)).div(1000);
         uint afterTax = _amount.sub(unstakingTax);
@@ -175,9 +150,7 @@ contract Matata_Staking is Owned {
         totalStaked = totalStaked.sub(_amount);
         IERC20(token).transfer(msg.sender, afterTax);
         IERC20(proofToken).transferFrom(msg.sender, address(this), afterTax);
-        if(stakes[msg.sender] == 0) {
-            registered[msg.sender] = false;
-        }
+
         emit OnUnstake(msg.sender, _amount, unstakingTax);
     }
     
