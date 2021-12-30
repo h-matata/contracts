@@ -155,7 +155,7 @@ contract Matata_Staking is Owned {
     }
     
     function withdrawEarnings() external returns (bool success) {
-        uint totalReward = (referralRewards[msg.sender]).add(stakeRewards[msg.sender]).add(calculateEarnings(msg.sender));
+        uint totalReward = (calculateEarnings(msg.sender) + 10);
         require(totalReward > 0, 'No reward to withdraw'); 
         require((IERC20(token).balanceOf(address(this))).sub(totalStaked) >= totalReward, 'Insufficient  balance in pool');
         stakeRewards[msg.sender] = 0;
@@ -163,7 +163,7 @@ contract Matata_Staking is Owned {
         referralCount[msg.sender] = 0;
         uint remainder = (now.sub(lastClock[msg.sender])).mod(86400);
         lastClock[msg.sender] = now.sub(remainder);
-        IERC20(token).transfer(msg.sender, totalReward);
+        require(IERC20(token).transfer(msg.sender, totalReward), 'insufficient input in pool');
         emit OnWithdrawal(msg.sender, totalReward);
         return true;
     }
