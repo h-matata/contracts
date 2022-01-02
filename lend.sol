@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
+pragma solidity 0.8.4;
 
 interface token {
     function transfer(address to, uint tokens) external returns (bool success);
@@ -68,7 +68,7 @@ contract lending {
         uint _loaningRate,
         bool _active
 
-    ) public {
+    ) {
 
         matata = _proofToken;
         busd = _busd;
