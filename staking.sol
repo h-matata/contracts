@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MATATA
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.11;
 
 interface IERC20 {
     function transfer(address to, uint tokens) external returns (bool success);
