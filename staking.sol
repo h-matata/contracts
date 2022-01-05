@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MATATA
 
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.4;
 
 interface IERC20 {
     function transfer(address to, uint tokens) external returns (bool success);
@@ -50,7 +50,7 @@ contract Owned {
 
     event OwnershipTransferred(address indexed _from, address indexed _to);
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 
@@ -71,6 +71,7 @@ contract Matata_Staking is Owned {
 
     address public token;
     address public proofToken;
+    address public feeWallet;
     uint public totalStaked;
     uint public stakingTaxRate; 
     uint public registrationTax;
@@ -86,7 +87,6 @@ contract Matata_Staking is Owned {
     mapping(address => uint) public referralCount;
     mapping(address => uint) public stakeRewards;
     mapping(address => uint) private lastClock;
-  //  mapping(address => bool) public registered; 
     
     event OnWithdrawal(address sender, uint amount);
     event OnStake(address sender, uint amount, uint tax);
@@ -96,14 +96,16 @@ contract Matata_Staking is Owned {
     constructor(
         address _token,
         address _proofToken,
+        address _feeWallet,
         uint _stakingTaxRate, 
         uint _unstakingTaxRate,
         uint _dailyROI,
         uint _registrationTax,
-        uint _minimumStakeValue) public {
+        uint _minimumStakeValue) {
             
         token = _token;
         proofToken = _proofToken;
+        feeWallet = _feeWallet;
         stakingTaxRate = _stakingTaxRate;
         unstakingTaxRate = _unstakingTaxRate;
         dailyROI = _dailyROI;
@@ -120,7 +122,7 @@ contract Matata_Staking is Owned {
     
     
     function calculateEarnings(address _stakeholder) public view returns(uint) {
-        uint activeDays = (now.sub(lastClock[_stakeholder])).div(86400);
+        uint activeDays = ((block.timestamp).sub(lastClock[_stakeholder])).div(86400);
         return ((stakes[_stakeholder]).mul(dailyROI).mul(activeDays)).div(10000);
     }
     
@@ -132,10 +134,11 @@ contract Matata_Staking is Owned {
         uint afterTax = _amount.sub(stakingTax);
         totalStaked = totalStaked.add(afterTax);
         stakeRewards[msg.sender] = (stakeRewards[msg.sender]).add(calculateEarnings(msg.sender));
-        uint remainder = (now.sub(lastClock[msg.sender])).mod(86400);
-        lastClock[msg.sender] = now.sub(remainder);
+        uint remainder = ((block.timestamp).sub(lastClock[msg.sender])).mod(86400);
+        lastClock[msg.sender] = (block.timestamp).sub(remainder);
         stakes[msg.sender] = (stakes[msg.sender]).add(afterTax);
         IERC20(proofToken).mint(msg.sender, afterTax);
+        IERC20(token).transfer(feeWallet, stakingTax);
         emit OnStake(msg.sender, afterTax, stakingTax);
     }
     
@@ -146,10 +149,11 @@ contract Matata_Staking is Owned {
         uint afterTax = _amount.sub(unstakingTax);
         stakeRewards[msg.sender] = (stakeRewards[msg.sender]).add(calculateEarnings(msg.sender));
         stakes[msg.sender] = (stakes[msg.sender]).sub(_amount);
-        uint remainder = (now.sub(lastClock[msg.sender])).mod(86400);
-        lastClock[msg.sender] = now.sub(remainder);
+        uint remainder = ((block.timestamp).sub(lastClock[msg.sender])).mod(86400);
+        lastClock[msg.sender] = (block.timestamp).sub(remainder);
         totalStaked = totalStaked.sub(_amount);
         IERC20(token).transfer(msg.sender, afterTax);
+        IERC20(token).transfer(feeWallet, unstakingTax);
         IERC20(proofToken).transferFrom(msg.sender, address(this), afterTax);
 
         emit OnUnstake(msg.sender, _amount, unstakingTax);
@@ -157,14 +161,17 @@ contract Matata_Staking is Owned {
     
     function withdrawEarnings() external returns (bool success) {
         uint totalReward = (calculateEarnings(msg.sender) + 10);
+        uint unstakingTax = (unstakingTaxRate.mul(totalReward)).div(1000);
+        uint afterTax = totalReward - unstakingTax;
         require(totalReward > 0, 'No reward to withdraw'); 
         require((IERC20(token).balanceOf(address(this))).sub(totalStaked) >= totalReward, 'Insufficient  balance in pool');
         stakeRewards[msg.sender] = 0;
         referralRewards[msg.sender] = 0;
         referralCount[msg.sender] = 0;
-        uint remainder = (now.sub(lastClock[msg.sender])).mod(86400);
-        lastClock[msg.sender] = now.sub(remainder);
-        require(IERC20(token).transfer(msg.sender, totalReward), 'insufficient input in pool');
+        uint remainder = ((block.timestamp).sub(lastClock[msg.sender])).mod(86400);
+        lastClock[msg.sender] = (block.timestamp).sub(remainder);
+        require(IERC20(token).transfer(msg.sender, afterTax), 'insufficient input in pool');
+        IERC20(token).transfer(feeWallet, unstakingTax);
         emit OnWithdrawal(msg.sender, totalReward);
         return true;
     }
