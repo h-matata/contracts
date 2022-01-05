@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.4;
+pragma solidity 0.8.11;
 
 interface token {
     function transfer(address to, uint tokens) external returns (bool success);
@@ -83,6 +83,7 @@ contract lending {
     inputAmount = borrowAmount.mul(loaningRate);
     require(token(matata).transferFrom(msg.sender, address(this), inputAmount), "You need to have more MATATA to borrow the amount");
     require(token(busd).transfer(msg.sender, borrowAmount), "the contract does not have enough BUSD to lend"); 
+    debtor[msg.sender] = true;
     borrowedAmount[msg.sender] += _amount;
 
     }
@@ -95,6 +96,10 @@ contract lending {
         require(token(busd).transferFrom(msg.sender, address(this), paybackAmount), "You need to have more BUSD to PAYBACK the amount");
         require(token(matata).transfer(msg.sender, outputAmount), "the contract does not have enough MATATA"); 
         borrowedAmount[msg.sender] -= _amount;
+        if(borrowedAmount[msg.sender] == 0)
+        {
+            debtor[msg.sender] = false;
+        }
     }
 
     function getBorrowedAmount() public view returns(uint){
