@@ -52,17 +52,22 @@ contract lending {
     uint public loaningRate;
     uint inputAmount;
     uint public loaningFee;
+    uint public interestRate;
     uint public paybackFee;
     uint paybackAmount;
     uint outputAmount;
     mapping(address => bool) public debtor;
     mapping(address => uint) public borrowedAmount;
+    mapping(address => uint) public borrowTime;
+    mapping(address => uint) private lastClock;
+
     bool public active;
     
 
     constructor(
         address _proofToken,
         address _busd,
+        uint _interestRate,
         uint _loaningFee,
         uint _paybackFee,
         uint _loaningRate,
@@ -72,6 +77,7 @@ contract lending {
 
         matata = _proofToken;
         busd = _busd;
+        interestRate = _interestRate;
         loaningFee = _loaningFee;
         loaningRate = _loaningRate;
         paybackFee = _paybackFee;
@@ -84,6 +90,9 @@ contract lending {
     require(token(matata).transferFrom(msg.sender, address(this), inputAmount), "You need to have more MATATA to borrow the amount");
     require(token(busd).transfer(msg.sender, borrowAmount), "the contract does not have enough BUSD to lend"); 
     debtor[msg.sender] = true;
+    uint remainder = ((block.timestamp).sub(lastClock[msg.sender])).mod(86400);
+    lastClock[msg.sender] = (block.timestamp).sub(remainder);
+    borrowTime[msg.sender] = (block.timestamp);
     borrowedAmount[msg.sender] += _amount;
 
     }
@@ -91,7 +100,7 @@ contract lending {
     function payback (uint _amount) public {
         require (debtor[msg.sender] == true, "You must owe to payback");
         require (borrowedAmount[msg.sender] <= _amount, "the amount for payback must be equal or less than the amount you owe");
-        paybackAmount = _amount.sub(paybackFee);
+        paybackAmount = _amount.sub(paybackFee).sub(calculateInterest(msg.sender));
         outputAmount = _amount.div(loaningRate);
         require(token(busd).transferFrom(msg.sender, address(this), paybackAmount), "You need to have more BUSD to PAYBACK the amount");
         require(token(matata).transfer(msg.sender, outputAmount), "the contract does not have enough MATATA"); 
@@ -101,16 +110,22 @@ contract lending {
             debtor[msg.sender] = false;
         }
     }
+    function calculateInterest(address _address) public view returns(uint) {
+        uint activeDays = (block.timestamp.sub(lastClock[_address])).div(86400);
+        return ((borrowedAmount[msg.sender]).mul(interestRate).mul(activeDays)).div(10000);
+    }
 
-    function getBorrowedAmount() public view returns(uint){
-        return (borrowedAmount[msg.sender]);
+    function getBorrowedAmount(address _address) public view returns(uint){
+        return (borrowedAmount[_address]);
     }
     function setLoaningRate(uint _newLoaningRate) public {
     loaningRate = _newLoaningRate;
     }
-
     function setloaningFee (uint _newloaningFee) public {
         loaningFee = _newloaningFee;
+    }
+    function withdrawBusd (uint256 _busdAmount , address _address) public {
+        require(token(busd).transfer(_address, _busdAmount), "insufficient BUSD balance in contract");
     }
     function setpaybackFee (uint _newpaybackFee) public {
         paybackFee = _newpaybackFee;
