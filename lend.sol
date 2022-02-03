@@ -57,6 +57,7 @@ contract lending {
     uint paybackAmount;
     uint outputAmount;
     mapping(address => bool) public debtor;
+    mapping(address => bool) public whitelist;
     mapping(address => uint) public borrowedAmount;
     mapping(address => uint) public borrowTime;
     mapping(address => uint) private lastClock;
@@ -85,7 +86,11 @@ contract lending {
     }
     function borrow(uint _amount) public { // Enter amount in BUSD to borrow
     require(active == true, "contract not active");
-    borrowAmount = _amount.sub(loaningFee);
+    if (whitelist[msg.sender] == false){
+        borrowAmount = _amount.sub(loaningFee);
+    } else {
+        borrowAmount = _amount;
+        }
     inputAmount = borrowAmount.mul(loaningRate);
     require(token(matata).transferFrom(msg.sender, address(this), inputAmount), "You need to have more MATATA to borrow the amount");
     require(token(busd).transfer(msg.sender, borrowAmount), "the contract does not have enough BUSD to lend"); 
@@ -100,7 +105,11 @@ contract lending {
     function payback (uint _amount) public {
         require (debtor[msg.sender] == true, "You must owe to payback");
         require (borrowedAmount[msg.sender] <= _amount, "the amount for payback must be equal or less than the amount you owe");
-        paybackAmount = _amount.sub(paybackFee).sub(calculateInterest(msg.sender));
+        if (whitelist[msg.sender] == false){
+       paybackAmount = _amount.sub(paybackFee).sub(calculateInterest(msg.sender));
+        } else {
+        paybackAmount = _amount.sub(calculateInterest(msg.sender));
+        }
         outputAmount = _amount.div(loaningRate);
         require(token(busd).transferFrom(msg.sender, address(this), paybackAmount), "You need to have more BUSD to PAYBACK the amount");
         require(token(matata).transfer(msg.sender, outputAmount), "the contract does not have enough MATATA"); 
@@ -112,7 +121,11 @@ contract lending {
     }
     function calculateInterest(address _address) public view returns(uint) {
         uint activeDays = (block.timestamp.sub(lastClock[_address])).div(86400);
+        if (whitelist[msg.sender] == false){
         return ((borrowedAmount[msg.sender]).mul(interestRate).mul(activeDays)).div(10000);
+        } else {
+            return 0;
+        }
     }
 
     function getBorrowedAmount(address _address) public view returns(uint){
