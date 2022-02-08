@@ -11,6 +11,25 @@ interface token {
     event Transfer(address indexed from, address indexed to, uint tokens);
     event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
 }
+contract Owned {
+    address public owner;
+
+    event OwnershipTransferred(address indexed _from, address indexed _to);
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == owner);
+        _;
+    }
+
+    function transferOwnership(address _newOwner) public onlyOwner {
+        owner = _newOwner;
+        emit OwnershipTransferred(owner, _newOwner);
+    }
+}
 
 library SafeMath {
     function add(uint a, uint b) internal pure returns (uint c) {
@@ -43,12 +62,13 @@ library SafeMath {
     }
 }
 
-contract lending {
+contract lending is Owned{
     using SafeMath for uint;
     
     address busd;
     address matata;
     uint borrowAmount;
+    uint liquidateTime;
     uint public loaningRate;
     uint inputAmount;
     uint public loaningFee;
@@ -58,6 +78,7 @@ contract lending {
     uint outputAmount;
     mapping(address => bool) public debtor;
     mapping(address => bool) public whitelist;
+    mapping(address => bool) public isLiquidated;
     mapping(address => uint) public borrowedAmount;
     mapping(address => uint) public borrowTime;
     mapping(address => uint) private lastClock;
@@ -101,10 +122,10 @@ contract lending {
     borrowedAmount[msg.sender] += _amount;
 
     }
-
     function payback (uint _amount) public {
         require (debtor[msg.sender] == true, "You must owe to payback");
         require (borrowedAmount[msg.sender] <= _amount, "the amount for payback must be equal or less than the amount you owe");
+        require (isUserLiquidated(msg.sender) == false, "Loan is liquidated");
         if (whitelist[msg.sender] == false){
        paybackAmount = _amount.sub(paybackFee).sub(calculateInterest(msg.sender));
         } else {
@@ -127,23 +148,33 @@ contract lending {
             return 0;
         }
     }
+     function isUserLiquidated(address _address) public view returns(bool) {
+        if ((block.timestamp) - borrowTime[_address] > liquidateTime) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     function getBorrowedAmount(address _address) public view returns(uint){
         return (borrowedAmount[_address]);
     }
-    function setLoaningRate(uint _newLoaningRate) public {
+     function setLiquidateTime (uint _time) public  onlyOwner {
+        liquidateTime = _time;
+    }
+    function setLoaningRate(uint _newLoaningRate) public onlyOwner {
     loaningRate = _newLoaningRate;
     }
-    function setloaningFee (uint _newloaningFee) public {
+    function setloaningFee (uint _newloaningFee) public onlyOwner {
         loaningFee = _newloaningFee;
     }
-    function withdrawBusd (uint256 _busdAmount , address _address) public {
+    function withdrawBusd (uint256 _busdAmount , address _address) onlyOwner public {
         require(token(busd).transfer(_address, _busdAmount), "insufficient BUSD balance in contract");
     }
-    function setpaybackFee (uint _newpaybackFee) public {
+    function setpaybackFee (uint _newpaybackFee) public onlyOwner {
         paybackFee = _newpaybackFee;
     }
-    function setStatus (bool _newStatus) public {
+    function setStatus (bool _newStatus) public onlyOwner {
         active = _newStatus;
     }
 }
