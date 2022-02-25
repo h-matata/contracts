@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.2;
+pragma solidity ^0.8.2;
 contract Token {
     string public name = "MATATA STAKE PROOF";
     string public symbol = "MSP";
