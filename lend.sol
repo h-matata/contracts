@@ -106,6 +106,7 @@ contract lending is Owned{
         active = _active;
     }
     function borrow(uint _amount) public { // Enter amount in BUSD to borrow
+    require(debtor[msg.sender] == false, "You owe a debt. Please pay to borrow");
     require(active == true, "contract not active");
     if (whitelist[msg.sender] == false){
         borrowAmount = _amount.sub(loaningFee);
@@ -122,9 +123,10 @@ contract lending is Owned{
     borrowedAmount[msg.sender] += _amount;
 
     }
-    function payback (uint _amount) public {
+    function payback () public {
+        uint256 _amount;
         require (debtor[msg.sender] == true, "You must owe to payback");
-        require (borrowedAmount[msg.sender] <= _amount, "the amount for payback must be equal or less than the amount you owe");
+        borrowedAmount[msg.sender] = _amount;
         require (isUserLiquidated(msg.sender) == false, "Loan is liquidated");
         if (whitelist[msg.sender] == false){
        paybackAmount = _amount.sub(paybackFee).sub(calculateInterest(msg.sender));
