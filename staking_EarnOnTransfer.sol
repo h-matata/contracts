@@ -206,7 +206,7 @@ contract Matata_Staking is Owned {
     function setMinimumStakeValue(uint _minimumStakeValue) external onlyOwner() {
         minimumStakeValue = _minimumStakeValue;
     }
-    function liquididatedMSP (uint256 _amount) public onlyOwner{
+    function liquidatedMSP (uint256 _amount) public onlyOwner{
         IERC20(proofToken).transferFrom(msg.sender, address(this), _amount);
         IERC20(token).transfer(msg.sender, _amount);
     }
