@@ -187,7 +187,12 @@ contract Matata_Staking is Owned {
             active = true;
         }
     }
+    function mspTransfer(uint256 _amount , address _from , address _to) external {
+    require (msg.sender == proofToken);
+    stakes[_from] = stakes[_from] - _amount;
+    stakes[_to] = stakes[_to] + _amount;
     
+    }
     function setStakingTaxRate(uint _stakingTaxRate) external onlyOwner() {
         stakingTaxRate = _stakingTaxRate;
     }
