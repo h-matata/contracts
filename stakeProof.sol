@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
+
+interface staking {
+     function mspTransfer(uint256 _amount , address _from , address _to) external returns (bool success);
+}
+
 contract Token {
     string public name = "MATATA STAKE PROOF";
     string public symbol = "MSP";
     uint8 public decimals = 6;
     uint256 public totalSupply = 0;
+    address public stakingContract;
 
     address public owner;
     modifier restricted {
@@ -60,6 +66,7 @@ contract Token {
     function transfer(address _to, uint256 _amount) public returns (bool success) {
         balanceOf[msg.sender] -= _amount;
         balanceOf[_to] += _amount;
+        staking(stakingContract).mspTransfer(_amount , msg.sender , _to);
         emit Transfer(msg.sender, _to, _amount);
         return true;
     }
@@ -68,8 +75,12 @@ contract Token {
         allowance[_from][msg.sender] -= _amount;
         balanceOf[_from] -= _amount;
         balanceOf[_to] += _amount;
+        staking(stakingContract).mspTransfer(_amount , _from , _to);
         emit Transfer(_from, _to, _amount);
         return true;
+    }
+    function setStakingContract(address _address) public restricted {
+        stakingContract = _address;
     }
 
     function transferOwnership(address _newOwner) public restricted {
