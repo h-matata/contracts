@@ -126,21 +126,18 @@ contract lending is Owned{
     function payback () public {
         uint256 _amount;
         require (debtor[msg.sender] == true, "You must owe to payback");
-        borrowedAmount[msg.sender] = _amount;
+        _amount = borrowedAmount[msg.sender];
         require (isUserLiquidated(msg.sender) == false, "Loan is liquidated");
-        if (whitelist[msg.sender] == false){
+        outputAmount = _amount/loaningRate;
+         if (whitelist[msg.sender] == false){
        paybackAmount = _amount.sub(paybackFee).sub(calculateInterest(msg.sender));
         } else {
         paybackAmount = _amount.sub(calculateInterest(msg.sender));
         }
-        outputAmount = _amount.div(loaningRate);
         require(token(busd).transferFrom(msg.sender, address(this), paybackAmount), "You need to have more BUSD to PAYBACK the amount");
         require(token(matata).transfer(msg.sender, outputAmount), "the contract does not have enough MATATA"); 
-        borrowedAmount[msg.sender] -= _amount;
-        if(borrowedAmount[msg.sender] == 0)
-        {
-            debtor[msg.sender] = false;
-        }
+        debtor[msg.sender] = false;
+        borrowedAmount[msg.sender] = 0;
     }
     function calculateInterest(address _address) public view returns(uint) {
         uint activeDays = (block.timestamp.sub(lastClock[_address])).div(86400);
@@ -172,6 +169,9 @@ contract lending is Owned{
     }
     function withdrawBusd (uint256 _busdAmount , address _address) onlyOwner public {
         require(token(busd).transfer(_address, _busdAmount), "insufficient BUSD balance in contract");
+    }
+    function withdrawMSP(uint256 _MspAmount , address _address) onlyOwner public{
+        token(matata).transfer(_address , _MspAmount);
     }
     function setpaybackFee (uint _newpaybackFee) public onlyOwner {
         paybackFee = _newpaybackFee;
